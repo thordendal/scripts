@@ -16,21 +16,25 @@ for line in lines:
     if len(line.rstrip().split('=',1))>1:
         zbx_data[line.rstrip().split('=',1)[0]] = line.rstrip().split('=',1)[1]
 
-slack_icon = ':white_check_mark:'
+
+slack_colors = { 'OK': '#FF3838', 'PROBLEM': '#43F060' }
+slack_color = slack_colors['OK']
 if 'PROBLEM' in slack_subject:
-    slack_icon = ':warning:'
+    slack_color = slack_colors['PROBLEM']
 
 slack_sev = zbx_data['TRIGGER_SEVERITY']
 
-slack_colors = { 'Disaster': '#FF3838',
-                 'High': '#FF9999',
-                 'Average': '#FFF6A5',
-                 'Warning': '#FFF6A5',
-                 'Information': '#D6F6FF',
-                 'Not classified': '#BBBBBB',
+
+slack_icons = { 'Disaster':         ':van-van:',
+                 'High':            ':fb-angry:',
+                 'Average':         ':trollface:',
+                 'Warning':         ':troll-half:',
+                 'Information':     ':orly:',
+                 'Not classified':  ':petrosyan:',
                }
 
-slack_color = slack_colors[slack_sev]
+
+slack_icon = slack_icons[slack_sev]
 slack_attach_title = zbx_data['TRIGGER_NAME'] + ": " + zbx_data['TRIGGER_VALUE']
 slack_attach_pretext = ''
 slack_attach_text = zbx_data['ITEM_NAME1'] + ": " + zbx_data['ITEM_VALUE1'].replace('"','&quot;') + "\n" + zbx_data['TRIGGER_DESCRIPTION']
