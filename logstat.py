@@ -3,8 +3,6 @@
 
 import sys
 import os
-import time
-import linecache
 import re
 import errno
 import json
@@ -19,7 +17,7 @@ regex = sys.argv[2]
 try:
     statefile = sys.argv[3]
 except:
-    statefile = "/home/zabbix/scripts/log_state.json"
+    statefile = "log_state.json"
 
 def open_file(filename, mode='r', ifnotexists=None):
     '''
@@ -72,13 +70,13 @@ def add_entry_to_data(path=infile,
                       regex=regex,
                       cur_date=0,
                       cur_size=0,
-                      cur_line=0,
+                      cur_byte=0,
                       firstline=''):
     for d in data:
         if d['path'] == path:
             d['state'].append({"date": cur_date,
                                 "size": cur_size,
-                                "line": cur_line,
+                                "byte": cur_byte,
                                 "regex": regex,
                                 "firstline": firstline})
             return data
@@ -87,7 +85,7 @@ def add_entry_to_data(path=infile,
                 [
                     {"date": cur_date,
                     "size": cur_size,
-                    "line": cur_line,
+                    "byte": cur_byte,
                     "regex": regex,
                     "firstline": firstline
                      }
@@ -98,14 +96,14 @@ def update_entry(path=infile,
                  regex=regex,
                  cur_date=0,
                  cur_size=0,
-                 cur_line=0,
+                 cur_byte=0,
                  firstline=''):
     for d in data:
         if d['path'] == path:
             for r in d['state']:
                 if r['regex'] == regex:
                     r["date"] = cur_date
-                    r["line"] = cur_line
+                    r["byte"] = cur_byte
                     r["size"] = cur_size
                     r["firstline"] = firstline
                     return data
@@ -134,28 +132,31 @@ def get_firstline(infile):
 
 def read_log_file(fp, regex, data):
     state = get_state(data, fp.name, regex)
-    with fp:
-        for i, line in enumerate(fp):
-            if (i > state['state']['line']) and re_filter(line, regex):
-                print line[:-1]
-            data = update_entry(fp.name, regex, cur_date, cur_size, cur_line)
-            print get_state(data, fp.name, regex)
-
-    return
+    counter = 0
+    fp.seek(state['state']['byte'])
+    while True:
+        line = fp.readline()
+        if not line:
+            break
+        if re_filter(line, regex):
+            counter += 1
+    state = update_entry(fp.name, regex, cur_date, cur_size, firstline=firstline, cur_byte=fp.tell())
+    print counter
+    return state
 
 infile = get_full_path(infile)
 
 try:
     fp = open_file(infile, mode='r', ifnotexists='create')
 except IOError:
-    print u"I/O ЕГГОГ"
+    print u"I/O Error"
     sys.exit(1)
 
 firstline = get_firstline(infile)
-
+fp.seek(0)
 cur_date = os.stat(infile).st_mtime
 cur_size = os.stat(infile).st_size
-cur_line = 10
+cur_byte = 10
 
 try:
     data = read_state_config(statefile)
@@ -171,7 +172,7 @@ if state == None:
     data = add_entry_to_data(path=infile,
                       regex=regex,
                       cur_date=0,
-                      cur_line=0,
+                      cur_byte=0,
                       cur_size=0,
                       firstline='',
                       )
@@ -179,17 +180,8 @@ if state == None:
 
 
 if (state['state']['size'] > cur_size) or (state['state']['firstline'] != firstline):
-    update_entry(infile,regex,cur_date,cur_size,cur_line=0, firstline=firstline)
+    update_entry(infile,regex,cur_date,cur_size,cur_byte=0, firstline=firstline)
 
 with fp:
-    lastline = 0
-    for i, line in enumerate(fp):
-        if (i > state['state']['line']) and re_filter(line, regex):
-            counter += 1
-        elif (i < state['state']['line']):
-            continue
-        data = update_entry(infile, regex, cur_date, cur_size, cur_line=i, firstline=firstline)
-print counter
-state = get_state(data, infile, regex)
-
-write_state_config(data, statefile)
+    data = read_log_file(fp, regex, data)
+    write_state_config(data, statefile)
