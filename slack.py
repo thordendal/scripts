@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 
 import sys
-import os
+import subprocess
 import json
-slack_url = 'https://hooks.slack.com/services/YOUR/HOOK/KEY'
+slack_url = 'https://hooks.slack.com/services/T00000000/B00000000/000000000000000000000000'
 slack_username='Slack username'
 
 slack_to = sys.argv[1]
@@ -25,12 +25,12 @@ if 'PROBLEM' in slack_subject:
 slack_sev = zbx_data['TRIGGER_SEVERITY']
 
 
-slack_icons = { 'Disaster':         ':van-van:',
-                 'High':            ':fb-angry:',
-                 'Average':         ':trollface:',
-                 'Warning':         ':troll-half:',
-                 'Information':     ':orly:',
-                 'Not classified':  ':petrosyan:',
+slack_icons = { 'Disaster':         ':closed_book:',
+                 'High':            ':orange_book:',
+                 'Average':         ':ledger:',
+                 'Warning':         ':notebook_with_decorative_cover:',
+                 'Information':     ':blue_book:',
+                 'Not classified':  ':notebook:',
                }
 
 
@@ -40,22 +40,31 @@ slack_attach_pretext = ''
 slack_attach_text = zbx_data['ITEM_NAME1'] + ": " + zbx_data['ITEM_VALUE1'].replace('"','&quot;') + "\n" + zbx_data['TRIGGER_DESCRIPTION']
 
 try:
-    slack_munin_url = zbx_data['INVENTORY_URL_A1']  + "\n" + zbx_data['TRIGGER_DESCRIPTION']
+    slack_munin_url = zbx_data['INVENTORY_URL_A1']
 except KeyError:
     slack_munin_url = ''
-if 'UNKNOWN' in slack_munin_url:
+if 'UNKNOWN' in slack_munin_url or slack_munin_url=='':
     slack_munin_url = ''
-slack_attach_fallback = '<' + slack_munin_url + '|' + zbx_data['TRIGGER_NAME'] + '>' + "\n" + zbx_data['TRIGGER_DESCRIPTION']
+    slack_attach_fallback = zbx_data['TRIGGER_NAME'] + '\n' + zbx_data['TRIGGER_DESCRIPTION']
+    slack_text = slack_icon + ' ' + zbx_data['HOST_NAME1']
+else:
+    slack_attach_fallback = slack_munin_url + '|' + zbx_data['TRIGGER_NAME'] + '>' + "\n" + zbx_data['TRIGGER_DESCRIPTION']
+    slack_text = (slack_icon + " <" + slack_munin_url + "|" + zbx_data['HOST_NAME1'] + ">")
 
 json_payload = {"channel" : slack_to,
                 "username": slack_username,
-                "text": (slack_icon + " <" + slack_munin_url + "|" + zbx_data['HOST_NAME1'] + ">"),
+                "text": slack_text,
+                "icon_emoji": slack_icon,
                 "attachments": [
                         { "fallback": slack_attach_fallback,
                           "color" : slack_color,
-                          "title" : "",
+                          "title" : slack_attach_title,
                           "pretext" : slack_attach_pretext,
-                          "text" : slack_attach_title + "\n" + slack_attach_text } ] }
+                          "text" : slack_attach_text,
+                        }
+                    ]
+                }
 
-invoke = "/usr/bin/curl -m 5 --data-urlencode 'payload=" + json.dumps(json_payload) + "' '" + slack_url + "'"
-os.system(invoke)
+payload = "payload=" + json.dumps(json_payload)
+invoke = ['/usr/bin/curl', '-m', '5', '--data-urlencode', payload, slack_url]
+subprocess.call(invoke)
