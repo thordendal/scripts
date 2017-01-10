@@ -50,7 +50,7 @@ $ ./logstat.py /var/log/foo.log 'Fatal error'
 
 ### Внимание!
 Для правильной работы скрипта формат сообщений в заббиксе следует настроить так:
-**Subject:** `{TRIGGER.STATUS} {TRIGGER.NAME}`
+**Subject:** `{TRIGGER.STATUS} {TRIGGER.NAME}`  
 **Message:**
 ```
 HOST_NAME1={HOST.NAME1}
