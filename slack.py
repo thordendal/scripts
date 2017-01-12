@@ -5,6 +5,7 @@ import sys
 import subprocess
 import json
 slack_url = 'https://hooks.slack.com/services/T00000000/B00000000/000000000000000000000000'
+
 slack_username='Slack username'
 
 slack_to = sys.argv[1]
@@ -37,7 +38,18 @@ slack_icons = { 'Disaster':         ':closed_book:',
 slack_icon = slack_icons[slack_sev]
 slack_attach_title = zbx_data['TRIGGER_NAME'] + ": " + zbx_data['TRIGGER_VALUE']
 slack_attach_pretext = ''
-slack_attach_text = zbx_data['ITEM_NAME1'] + ": " + zbx_data['ITEM_VALUE1'].replace('"','&quot;') + "\n" + zbx_data['TRIGGER_DESCRIPTION']
+
+slack_attach_text = ''
+for key in zbx_data.iterkeys():
+    if ('ITEM_NAME' in key) and (zbx_data[key] != '*UNKNOWN*'):
+        value_key = 'ITEM_VALUE'+key[-1]
+        slack_attach_text = "{0}{1}: {2}\n".format(slack_attach_text, zbx_data[key], zbx_data[value_key])
+
+
+try:
+    slack_attach_text = slack_attach_text + zbx_data['TRIGGER_DESCRIPTION']
+except KeyError:
+    pass
 
 try:
     slack_munin_url = zbx_data['INVENTORY_URL_A1']
@@ -45,16 +57,20 @@ except KeyError:
     slack_munin_url = ''
 if 'UNKNOWN' in slack_munin_url or slack_munin_url=='':
     slack_munin_url = ''
-    slack_attach_fallback = zbx_data['TRIGGER_NAME'] + '\n' + zbx_data['TRIGGER_DESCRIPTION']
+    try:
+        slack_attach_fallback = zbx_data['TRIGGER_NAME'] + '\n' + zbx_data['TRIGGER_DESCRIPTION']
+    except KeyError:
+        slack_attach_fallback = zbx_data['TRIGGER_NAME']
     slack_text = slack_icon + ' ' + zbx_data['HOST_NAME1']
 else:
     slack_attach_fallback = slack_munin_url + '|' + zbx_data['TRIGGER_NAME'] + '>' + "\n" + zbx_data['TRIGGER_DESCRIPTION']
     slack_text = (slack_icon + " <" + slack_munin_url + "|" + zbx_data['HOST_NAME1'] + ">")
 
+
+
 json_payload = {"channel" : slack_to,
                 "username": slack_username,
                 "text": slack_text,
-                "icon_emoji": slack_icon,
                 "attachments": [
                         { "fallback": slack_attach_fallback,
                           "color" : slack_color,
@@ -67,4 +83,5 @@ json_payload = {"channel" : slack_to,
 
 payload = "payload=" + json.dumps(json_payload)
 invoke = ['/usr/bin/curl', '-m', '5', '--data-urlencode', payload, slack_url]
+
 subprocess.call(invoke)
